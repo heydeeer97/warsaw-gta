@@ -3,8 +3,7 @@ name: WARSAW GTA - Android Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout project
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -27,7 +26,7 @@ jobs:
           accept-android-sdk-licenses: false
           packages: ''
 
-      - name: Accept Android licenses
+      - name: Accept licenses
         run: yes | sdkmanager --licenses
 
       - name: Install Android packages
@@ -50,11 +49,10 @@ jobs:
           unzip -q Godot_v4.3-stable_export_templates.tpz -d templates
           cp -r templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
 
-      - name: Prepare debug key
+      - name: Create debug keystore
         run: |
-          mkdir -p ~/.android
           keytool -genkeypair -v \
-            -keystore ~/.android/debug.keystore \
+            -keystore "$GITHUB_WORKSPACE/debug.keystore" \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
@@ -69,6 +67,10 @@ jobs:
             --headless --editor --path . --quit
 
       - name: Build APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
           ./Godot_v4.3-stable_linux.x86_64 \
