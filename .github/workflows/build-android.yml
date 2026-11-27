@@ -23,18 +23,19 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+          packages: ''
 
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
-      - name: Install Android components
+      - name: Install Android packages
         run: |
           sdkmanager \
             "platform-tools" \
             "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "ndk;23.2.8568313" \
-            "cmake;3.10.2.4988404"
+            "build-tools;34.0.0"
 
       - name: Download Godot
         run: |
@@ -42,7 +43,7 @@ jobs:
           unzip Godot_v4.3-stable_linux.x86_64.zip
           chmod +x Godot_v4.3-stable_linux.x86_64
 
-      - name: Download export templates
+      - name: Install export templates
         run: |
           wget https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable
