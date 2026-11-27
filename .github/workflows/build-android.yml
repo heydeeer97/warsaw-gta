@@ -11,17 +11,57 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    container:
-      image: barichello/godot-ci:4.3.0
-
     steps:
       - name: Download project
         uses: actions/checkout@v4
 
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Download Godot
+        run: |
+          wget https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          unzip Godot_v4.3-stable_linux.x86_64.zip -d godot-bin
+          chmod +x godot-bin/Godot_v4.3-stable_linux.x86_64
+          echo "GODOT=$PWD/godot-bin/Godot_v4.3-stable_linux.x86_64" >> $GITHUB_ENV
+
+      - name: Install export templates
+        run: |
+          wget https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -q Godot_v4.3-stable_export_templates.tpz -d templates
+          cp -r templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+
+      - name: Prepare Android signing
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Import project
+        run: |
+          "$GODOT" --headless --editor --path . --quit
+
       - name: Build APK
         run: |
           mkdir -p build
-          godot --headless --path . \
+          "$GODOT" --headless --path . \
             --export-debug "Android" \
             build/warsaw-gta.apk
 
