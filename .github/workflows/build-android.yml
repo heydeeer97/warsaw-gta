@@ -3,7 +3,8 @@ name: WARSAW GTA - Android Build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -26,7 +27,7 @@ jobs:
           accept-android-sdk-licenses: false
           packages: ''
 
-      - name: Accept licenses
+      - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
       - name: Install Android packages
@@ -42,7 +43,7 @@ jobs:
           unzip Godot_v4.3-stable_linux.x86_64.zip
           chmod +x Godot_v4.3-stable_linux.x86_64
 
-      - name: Install export templates
+      - name: Install Godot export templates
         run: |
           wget https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable
@@ -51,6 +52,7 @@ jobs:
 
       - name: Create debug keystore
         run: |
+          mkdir -p ~/.android
           keytool -genkeypair -v \
             -keystore "$GITHUB_WORKSPACE/debug.keystore" \
             -storepass android \
@@ -61,24 +63,40 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
+      - name: Configure Android environment
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
       - name: Import project
         run: |
           ./Godot_v4.3-stable_linux.x86_64 \
             --headless --editor --path . --quit
 
-      - name: Build APK
+      - name: Build APK with diagnostics
         env:
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
+          set -o pipefail
           ./Godot_v4.3-stable_linux.x86_64 \
-            --headless --path . \
+            --headless --verbose --path . \
             --export-debug "Android" \
-            build/warsaw-gta.apk
+            build/warsaw-gta.apk 2>&1 | tee build.log
+
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Warsaw-GTA-Build-Log
+          path: build.log
+          if-no-files-found: ignore
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: WARSAW-GTA-APK
